@@ -1,5 +1,6 @@
 from MoveHandler import *
 from ImageHandler import *
+from TargetHandler import *
 from datetime import datetime
 
 
@@ -8,6 +9,7 @@ class Controller:
         self.robot = robot
         self.move_handler = MoveHandler(robot)
         self.image_handler = ImageHandler(robot)
+        self.target_handler = TargetHandler()
         #self.calibration_relative_vectors = [(0.05, 0, 0), (0, 0.1, 0),(-0.2, 0, 0),(0, -0.2, 0), (0.2, 0, 0), (-0.1, 0.1, 0)]
         self.calibration_relative_vectors = [(0.05, 0, 0), (0, 0.05, 0), (0, 0.05, 0), (-0.05, 0, 0), (0, -0.05, 0),
                                              (0, -0.05, 0), (0, -0.05, 0), (0, -0.05, 0), (0.05, 0, 0), (0, 0.05, 0), (0, 0.05, 0), (-0.05, 0, 0)]
@@ -53,6 +55,8 @@ class Controller:
                         self.calibrate()
                     case "target":
                         self.image_handler.find_target()
+                    case "target_angle":
+                        self.image_handler.get_target_angle()
                     case _:
                         print("Img command not found!")
 
@@ -94,11 +98,16 @@ class Controller:
                                 self.move_handler.move_to_relative_position((0,0,-0.18))
                             case 2:
                                 input("Is everything alright?")
-                                self.move_handler.move_relative_sequantial(self.task2_instructions)
+                                angle = self.image_handler.get_target_angle()
+                                instructions = self.target_handler.get_instructions_B(angle)
+
+                                self.move_handler.move_relative_sequantial(instructions)
                     case "start":
                         self.move_handler.move_to_q_position()
                     case "home":
                         self.move_handler.move_home()
+                    case "five":
+                        self.move_handler.move_to_q_position(five_pos=True)
                     case "target":
                         formated_pixels = np.array([[self.image_handler.target_pixels]], dtype=np.float64)
                         target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0]
@@ -125,7 +134,28 @@ class Controller:
                     case "e":
                         move_meters = float(input("How many centimeters do you want to move?"))/100
                         self.move_handler.move_to_relative_position((0,0,-move_meters))
-                    
+                    case "j":
+                        joint_number = int(input("Enter joint you want to move: ")) - 1
+                        turn_angle = float(input("How many degrees do you want to turne: "))
+                        current_angles = np.rad2deg(self.robot.get_q())
+                        
+                        for i in range(len(current_angles)):
+                            if joint_number == i:
+                                current_angles[i] += turn_angle
+
+                        self.move_handler.move_to_q_position(current_angles)
+
+                    case "r":
+                        angle = np.deg2rad(float(input("Give me angle:")))
+                        # rotation in axis x
+                        rot_mat1 = np.array([[1,0,0], [0,np.cos(angle),-np.sin(angle)], [0,np.sin(angle),np.cos(angle)]])
+
+                        # rotation in axis y
+                        rot_mat2 = np.array([[np.cos(angle),0,np.sin(angle)], [0,1,0], [-np.sin(angle), 0, np.cos(angle)]])
+                        rot_mat = rot_mat1 @ rot_mat2
+                        self.move_handler.rotate_ik(rot_mat)
+
+
                     case _:
                         print("Move command not found!")
             case _:

@@ -9,7 +9,7 @@ robot = CRS97()
 
 input("Arm the arm!")
 
-robot.initialize()
+robot.initialize(home=False)
 
 robot.wait_for_motion_stop()
 

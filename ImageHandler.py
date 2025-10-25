@@ -13,6 +13,10 @@ class ImageHandler:
     self.homography = np.array(self.homography)
     self.target_pixels = None # (x,y) of the target
 
+    self.aruco_centers = []
+    self.aruco_corners = []
+    self.aruco_ids = []
+
   def load_h(self, filename="homography.txt"):
     with open(filename) as f:
       self.homography = [list(map(float, line.split())) for line in f]
@@ -131,6 +135,9 @@ class ImageHandler:
     if draw_results:
       cv2.aruco.drawDetectedMarkers(img, corners, ids)
     
+    self.aruco_corners = np.array(corners)
+    self.aruco_ids = np.array(ids)
+
     self.show_img(img)
 
     #print(corners)
@@ -149,6 +156,8 @@ class ImageHandler:
         aruco_center[1] += pos[1]
       aruco_centers.append([aruco_center[0] / 4, aruco_center[1]/ 4])
 
+    self.aruco_centers = np.array(aruco_centers)
+
     self.target_pixels = ((aruco_centers[0][0] + aruco_centers[1][0]) / 2, (aruco_centers[0][1] + aruco_centers[1][1]) / 2)
     return 0
 
@@ -156,3 +165,23 @@ class ImageHandler:
     print(self.homography)
     print(self.homography.shape)
     return cv2.perspectiveTransform(pixels,self.homography)
+
+  def get_target_angle(self):
+    id1 = np.array(self.aruco_ids).tolist().index(min(self.aruco_ids))
+    id2 = np.array(self.aruco_ids).tolist().index(max(self.aruco_ids))
+
+    v = (self.aruco_centers[id2] - self.aruco_centers[id1])
+    n = np.linalg.norm(v)
+    u = v / n # Normalisation
+
+    # Vector rotation
+    c = np.cos(np.deg2rad(45))
+    s = np.sin(np.deg2rad(45))
+
+    rot = np.array([c*u[0] + s*u[1], -s*u[0] + c*u[1]])
+
+    # Angle
+    angle = np.rad2deg(np.arctan(rot[1]/rot[0]))
+    print("Angle:", (angle + 90) % 360)
+
+    return (angle + 90) % 360
