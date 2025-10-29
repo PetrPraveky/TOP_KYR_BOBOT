@@ -12,13 +12,11 @@ class ImageHandler:
     self.load_h()
     self.homography = np.array(self.homography)
     self.target_pixels = None # (x,y) of the target
-    
-    self.aruco_corners = []
-    self.aruco_ids = []
 
     self.aruco_centers = []
     self.aruco_corners = []
     self.aruco_ids = []
+    self.aruco_ids_all = []
 
   def load_h(self, filename="homography.txt"):
     with open(filename) as f:
@@ -134,37 +132,59 @@ class ImageHandler:
 
     corners, ids, rejected = detector.detectMarkers(gray)
 
+    self.aruco_corners = corners
+    self.aruco_ids = ids
 
     if draw_results:
       cv2.aruco.drawDetectedMarkers(img, corners, ids)
-    
-    self.aruco_corners = np.array(corners)
-    self.aruco_ids = np.array(ids)
-
-    self.show_img(img)
-
-    #print(corners)
-
-    if len(corners) != 2:
-      print("Number of detected arucos is:", len(corners), "which is not 2!!!!")
-      return None
-
-    self.aruco_corners = np.array(corners)
-    self.aruco_ids = np.array(ids)
 
     aruco_centers = []
 
-    for corner in corners:
-      aruco_center = [0,0]
-      for pos in corner[0]:
-        #print(pos)
-        aruco_center[0] += pos[0]
-        aruco_center[1] += pos[1]
-      aruco_centers.append([aruco_center[0] / 4, aruco_center[1]/ 4])
+    if len(corners) == 0:
+      print("Number of detected arucos is:", len(corners), "which is not 2!!!!")
+      return 1
+    elif (len(corners) == 1):
+        print("Only one acuro!")
+        # Create the one and only center
+        aruco_center = [0, 0]
+        for corner in corners[0][0]:
+            aruco_center += corner
+        aruco_center /= 4
+
+        # Fill the id
+        missingId = 1 if ids[0][0] == 2 else 2
+        self.aruco_ids_all = np.array([[ids[0][0]], [missingId]])
+
+        # Find vector to center
+        vec = corners[0][0][0] - corners[0][0][2] if ids[0][0] == 2 else corners[0][0][2] - corners[0][0][0]
+        mag = np.linalg.norm(vec)
+        vec = vec / mag
+
+        # Pixel length center to center
+        length = (corners[0][0][0] - corners[0][0][1])
+        lengthMag = np.linalg.norm(length)
+        centerToCenter = lengthMag / 0.04 * np.sqrt(0.07 ** 2 + 0.07 ** 2)
+
+        vec *= centerToCenter
+        aruco_missing_center = aruco_center + vec
+
+        aruco_centers.append(aruco_center)
+        aruco_centers.append(aruco_missing_center)
+    else:
+      for corner in corners:
+        aruco_center = [0,0]
+        for pos in corner[0]:
+          aruco_center[0] += pos[0]
+          aruco_center[1] += pos[1]
+        aruco_centers.append([aruco_center[0] / 4, aruco_center[1]/ 4])
+
+        self.aruco_ids_all = ids
+
 
     self.aruco_centers = np.array(aruco_centers)
-
     self.target_pixels = ((aruco_centers[0][0] + aruco_centers[1][0]) / 2, (aruco_centers[0][1] + aruco_centers[1][1]) / 2)
+
+
     return 0
 
   def pixels_to_position(self, pixels):
@@ -173,8 +193,8 @@ class ImageHandler:
     return cv2.perspectiveTransform(pixels,self.homography)
 
   def get_target_angle(self):
-    id1 = np.array(self.aruco_ids).tolist().index(min(self.aruco_ids))
-    id2 = np.array(self.aruco_ids).tolist().index(max(self.aruco_ids))
+    id1 = np.array(self.aruco_ids_all).tolist().index(min(self.aruco_ids_all))
+    id2 = np.array(self.aruco_ids_all).tolist().index(max(self.aruco_ids_all))
 
     v = (self.aruco_centers[id2] - self.aruco_centers[id1])
     n = np.linalg.norm(v)
