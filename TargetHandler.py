@@ -44,7 +44,23 @@ class TargetHandler():
 
         return np.array(instructions)
 
-    def get_instructions_B(self, angle):
+    def get_instructions_C(self, angle):
+        a = np.deg2rad(angle)
+        rotation = np.array([
+            [np.cos(a), np.sin(a), 0],
+            [-np.sin(a), np.cos(a), 0],
+            [0, 0, 1]
+        ])
 
+        instructions = [
+            [-0.05, -0.05, 0],
+            [0, 0, -0.06],
+            [0, 0.05, -0.05],
+            [0.05, 0, -0.05],
+            [0, 0, -0.03]  
+        ]
 
-        pass
+        for i, instruction in enumerate(instructions):
+            instructions[i] = rotation @ np.array(instruction)
+
+        return np.array(instructions)

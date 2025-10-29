@@ -1,5 +1,4 @@
 import numpy as np
-from ctu_crs import CRS97
 import cv2
 from perception import *
 from aruco_detection import *
@@ -12,6 +11,8 @@ class MoveHandler:
   0.000000e+00])
     self.STARTING_POSITION = np.array([4.50000000e-03, -2.48202000e+01, -1.09159200e+02,  1.78217822e-03,
  -4.62528000e+01, 3.56435644e-03])
+    self.NEW_HOME_POSITION = np.array([-39.3777,     -40.6629,     -83.1753,      -0.18178218, -56.3454,
+ -39.27029703])
     self.FIVE_POSITION = np.array([-4.50000000e-03,  1.71000000e-02, -8.99973000e+01,  9.00017822e+01,
  -9.49968000e+01,  0.00000000e+00])
 
@@ -27,6 +28,10 @@ class MoveHandler:
   
   def move_home(self):
     self.robot.move_to_q(self.robot.q_home)
+    return 0
+
+  def move_new_home(self):
+    self.robot.move_to_q(self.NEW_HOME_POSITION)
     return 0
   
   def move_to_relative_position(self, move_vector):
@@ -45,9 +50,12 @@ class MoveHandler:
     self.robot.move_to_q(closest_solution)
     return 0
   
-  def move_ik(self, position):
+  def move_ik(self, position, matrix=None):
     pose = self.robot.fk(self.robot.get_q())
     pose[:3,3] = position
+  
+    if matrix is not None:
+      pose[:3,:3] = matrix
 
     ik_sols = self.robot.ik(pose)
     new_ik_sols = []
@@ -56,7 +64,6 @@ class MoveHandler:
         new_ik_sols.append(sol)
 
     ik_sols = new_ik_sols
-
 
     if len(ik_sols) < 1:
       print(f"{__file__} Machine impossible")
@@ -92,3 +99,10 @@ class MoveHandler:
 
     self.robot.move_to_q(closest_solution)
     return 0
+  
+  def check_instructions(self, move_vectors):
+    pose = self.robot.fk(self.robot.get_q())
+    for vector in move_vectors:
+      pose[:3,3] += np.array(vector)
+      sol = self.robot.ik(pose)
+      self.robot.in_limits(sol)

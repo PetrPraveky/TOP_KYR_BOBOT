@@ -1,5 +1,4 @@
 import numpy as np
-# from ctu_crs import CRS97
 import cv2
 from perception import *
 from aruco_detection import *
@@ -206,8 +205,28 @@ class ImageHandler:
 
     rot = np.array([c*u[0] + s*u[1], -s*u[0] + c*u[1]])
 
-    # Angle
-    angle = np.rad2deg(np.arctan(rot[1]/rot[0]))
-    print("Angle:", (angle + 90) % 360)
+    # Correct angle orientation
+    orientation = -1 if rot[0] > 0 else 1
+    offset = 90 if rot[1] < 0 else 0
 
-    return (angle + 90) % 360
+    # Angle
+    angle = np.rad2deg(np.arctan(rot[0]/rot[1]))
+
+    p0 = tuple(np.round(self.target_pixels).astype(int))
+    p1 = tuple(np.round(self.target_pixels + rot * 100).astype(int))
+    cv2.arrowedLine(self.last_img, p0, p1, (0,0,255), 4, tipLength=0.18)
+    
+    x, y = rot[0], rot[1]
+    if y > 0:
+      result = -angle
+    elif x < 0:
+      result = 180 - angle
+    elif x > 0:
+      result = -(180 + angle)
+    else:
+      resul = 180
+
+
+    print(angle, angle * orientation, result, offset, orientation)
+
+    return result

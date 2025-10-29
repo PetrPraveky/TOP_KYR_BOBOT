@@ -32,10 +32,12 @@ class Controller:
                         print(np.rad2deg(self.robot.get_q()))
                     case "sq":
                         print(sum(np.rad2deg(self.robot.get_q()[:-1])))
+                    case "sv": # print relative move vector to starting vector
+                        print(self.robot.fk(np.deg2rad(self.move_handler.STARTING_POSITION))[:3,3] - self.robot.fk(self.robot.get_q())[:3,3])
                     case _:
                         print("Print command not found!")
 
-            case "i": # Robot should do something with images
+            case "i": # Robot should do something with imagess
                 match raw_input[1:]:
                     case "take":
                         self.image_handler.take_img()
@@ -90,22 +92,46 @@ class Controller:
                         # up_first = self.robot.fk(self.robot.get_q())[:3,3]
                         # up_first[2] = 0.20
                         # self.move_handler.move_ik(up_first)
-                        self.move_handler.move_ik(np.append(target_position,0.25))
-                        self.robot.wait_for_motion_stop()
+
 
                         match task_number:
                             case 1:
+                                #self.move_handler.check_instructions()
+
+                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.robot.wait_for_motion_stop()
+                                
                                 self.move_handler.move_to_relative_position((0,0,-0.18))
                             case 2:
+                                #self.move_handler.check_instructions()
+                                
+                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.robot.wait_for_motion_stop()
+                                
                                 input("Is everything alright?")
                                 angle = self.image_handler.get_target_angle()
-                                instructions = self.target_handler.get_instructions_B(angle)
+                                print("Angle:", (angle + 90) % 360)
 
+                                instructions = self.target_handler.get_instructions_B(angle)
+                                self.move_handler.move_relative_sequantial(instructions)
+                            case 3:
+                                #self.move_handler.check_instructions()
+                                
+                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.robot.wait_for_motion_stop()
+                                
+                                input("Is everything alright?")
+                                angle = self.image_handler.get_target_angle()
+                                print("Angle:", (angle + 90) % 360)
+
+                                instructions = self.target_handler.get_instructions_C(angle)
                                 self.move_handler.move_relative_sequantial(instructions)
                     case "start":
                         self.move_handler.move_to_q_position()
                     case "home":
                         self.move_handler.move_home()
+                    case "new_home":
+                        self.move_handler.move_new_home()
                     case "five":
                         self.move_handler.move_to_q_position(five_pos=True)
                     case "target":
@@ -147,13 +173,27 @@ class Controller:
 
                     case "r":
                         angle = np.deg2rad(float(input("Give me angle:")))
+                        mat = self.robot.fk(self.robot.get_q())
+                        
+                        print(mat[:3,:3])
+
+
+
+                        # self.move_handler.rotate_ik()
                         # rotation in axis x
                         rot_mat1 = np.array([[1,0,0], [0,np.cos(angle),-np.sin(angle)], [0,np.sin(angle),np.cos(angle)]])
 
-                        # rotation in axis y
-                        rot_mat2 = np.array([[np.cos(angle),0,np.sin(angle)], [0,1,0], [-np.sin(angle), 0, np.cos(angle)]])
-                        rot_mat = rot_mat1 @ rot_mat2
-                        self.move_handler.rotate_ik(rot_mat)
+                        # # rotation in axis y
+                        # rot_mat2 = np.array([[np.cos(angle),0,np.sin(angle)], [0,1,0], [-np.sin(angle), 0, np.cos(angle)]])
+                        # rot_mat = rot_mat1 @ rot_mat2
+                        # self.move_handler.rotate_ik(rot_mat)
+
+                        mat[:3,:3] = rot_mat1 @ mat[:3,:3] 
+
+                        # self.robot.ik(mat)
+
+                        self.move_handler.move_ik(mat[:3,3], mat[:3,:3])
+
 
 
                     case _:
