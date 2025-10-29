@@ -1,5 +1,5 @@
 import numpy as np
-from ctu_crs import CRS97
+# from ctu_crs import CRS97
 import cv2
 from perception import *
 from aruco_detection import *
@@ -12,6 +12,9 @@ class ImageHandler:
     self.load_h()
     self.homography = np.array(self.homography)
     self.target_pixels = None # (x,y) of the target
+    
+    self.aruco_corners = []
+    self.aruco_ids = []
 
     self.aruco_centers = []
     self.aruco_corners = []
@@ -145,6 +148,9 @@ class ImageHandler:
     if len(corners) != 2:
       print("Number of detected arucos is:", len(corners), "which is not 2!!!!")
       return None
+
+    self.aruco_corners = np.array(corners)
+    self.aruco_ids = np.array(ids)
 
     aruco_centers = []
 

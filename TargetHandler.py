@@ -5,7 +5,6 @@ class TargetHandler():
     def __init__(self):
         self.handle_offset = 0.02 # 2cm above target
 
-
     def get_instructions_A(self, ground_offset=0.02):
         """
         Returns instructions for labyrint type A.
@@ -22,7 +21,7 @@ class TargetHandler():
     
     def get_instructions_B(self, angle):
         """
-        Returns instructions for labyrint type A.
+        Returns instructions for labyrint type B.
 
         By default the final instruction is 2cm above base
         """
@@ -45,3 +44,7 @@ class TargetHandler():
 
         return np.array(instructions)
 
+    def get_instructions_B(self, angle):
+
+
+        pass
