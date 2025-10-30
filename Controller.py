@@ -94,18 +94,27 @@ class Controller:
                         # self.move_handler.move_ik(up_first)
 
 
+                        #fuj
+                        # angle = np.deg2rad(45)
+                        # rot_mat1 = np.array([[1,0,0], [0,np.cos(angle),-np.sin(angle)], [0,np.sin(angle),np.cos(angle)]])
+                        # mat = self.robot.fk(self.robot.get_q())
+                        # mat[:3,:3] = rot_mat1 @ mat[:3,:3]
+                        # self.move_handler.move_ik(mat[:3,3],mat[:3,:3])
+                        # input("after rotation")
+
+
                         match task_number:
                             case 1:
                                 #self.move_handler.check_instructions()
 
-                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.move_handler.move_ik(np.append(target_position,0.25))
                                 self.robot.wait_for_motion_stop()
                                 
                                 self.move_handler.move_to_relative_position((0,0,-0.18))
                             case 2:
                                 #self.move_handler.check_instructions()
                                 
-                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.move_handler.move_ik(np.append(target_position,0.25))
                                 self.robot.wait_for_motion_stop()
                                 
                                 input("Is everything alright?")
@@ -117,7 +126,7 @@ class Controller:
                             case 3:
                                 #self.move_handler.check_instructions()
                                 
-                                self.move_handler.move_ik(np.append(target_position,0.27))
+                                self.move_handler.move_ik(np.append(target_position,0.25))
                                 self.robot.wait_for_motion_stop()
                                 
                                 input("Is everything alright?")
@@ -126,6 +135,28 @@ class Controller:
 
                                 instructions = self.target_handler.get_instructions_C(angle)
                                 self.move_handler.move_relative_sequantial(instructions)
+
+                            case 4:
+                                self.move_handler.move_ik(np.append(target_position,0.25))
+                                self.robot.wait_for_motion_stop()
+
+
+
+
+                                angle = (self.image_handler.get_target_angle())
+
+                                instructions = self.target_handler.get_instructions_D(angle)
+                                self.move_handler.move_to_relative_position(instructions[0])
+
+
+                                self.move_handler.move_to_relative_position(np.array([0,0,-0.05]))
+
+                                self.move_handler.move_relative_sequantial(instructions[1:])
+
+
+                            
+                            case 5:
+                                pass
                     case "start":
                         self.move_handler.move_to_q_position()
                     case "home":

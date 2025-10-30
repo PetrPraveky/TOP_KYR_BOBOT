@@ -58,12 +58,12 @@ class MoveHandler:
       pose[:3,:3] = matrix
 
     ik_sols = self.robot.ik(pose)
-    new_ik_sols = []
-    for sol in ik_sols:
-      if 155 < abs(np.rad2deg(sum(sol[:-1]))) % 360 < 205 and self.robot.in_limits(sol):
-        new_ik_sols.append(sol)
+    # new_ik_sols = []
+    # for sol in ik_sols:
+    #   if 155 < abs(np.rad2deg(sum(sol[:-1]))) % 360 < 205 and self.robot.in_limits(sol):
+    #     new_ik_sols.append(sol)
 
-    ik_sols = new_ik_sols
+    # ik_sols = new_ik_sols
 
     if len(ik_sols) < 1:
       print(f"{__file__} Machine impossible")
@@ -78,6 +78,7 @@ class MoveHandler:
     
   def move_relative_sequantial(self, instructions):
     for instruction in instructions:
+      input("Move?")
       self.move_to_relative_position(instruction)
       self.robot.wait_for_motion_stop()
 
