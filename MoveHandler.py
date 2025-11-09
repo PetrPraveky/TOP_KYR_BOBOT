@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from perception import *
 from aruco_detection import *
+import copy
 
 
 class MoveHandler:
@@ -44,8 +45,14 @@ class MoveHandler:
       print(f"{__file__} Machine impossible")
       return 1
 
-    q0 = self.robot.q_home
+
+    # q0 = self.robot.q_home
+    q0 = self.robot.get_q()
     closest_solution = min(ik_sols, key=lambda q: np.linalg.norm(q - q0))
+
+    if not self.robot.in_limits(closest_solution):
+      print('Joint limits violated!')
+      return 1
 
     self.robot.move_to_q(closest_solution)
     return 0
@@ -58,19 +65,18 @@ class MoveHandler:
       pose[:3,:3] = matrix
 
     ik_sols = self.robot.ik(pose)
-    # new_ik_sols = []
-    # for sol in ik_sols:
-    #   if 155 < abs(np.rad2deg(sum(sol[:-1]))) % 360 < 205 and self.robot.in_limits(sol):
-    #     new_ik_sols.append(sol)
-
-    # ik_sols = new_ik_sols
 
     if len(ik_sols) < 1:
       print(f"{__file__} Machine impossible")
       return 1
 
-    q0 = self.robot.q_home
+    # q0 = self.robot.q_home
+    q0 = self.robot.get_q()
     closest_solution = min(ik_sols, key=lambda q: np.linalg.norm(q - q0))
+
+    if not self.robot.in_limits(closest_solution):
+      print('Joint limits violated!')
+      return 1
 
     self.robot.move_to_q(closest_solution)
 
@@ -78,7 +84,7 @@ class MoveHandler:
     
   def move_relative_sequantial(self, instructions):
     for instruction in instructions:
-      input("Move?")
+      # input("Move?")
       self.move_to_relative_position(instruction)
       self.robot.wait_for_motion_stop()
 
@@ -101,9 +107,58 @@ class MoveHandler:
     self.robot.move_to_q(closest_solution)
     return 0
   
-  def check_instructions(self, move_vectors):
-    pose = self.robot.fk(self.robot.get_q())
+  def check_instructions(self, move_vectors, start_q):
+    q = np.deg2rad(start_q)
     for vector in move_vectors:
-      pose[:3,3] += np.array(vector)
-      sol = self.robot.ik(pose)
-      self.robot.in_limits(sol)
+      # New position 
+      pose = self.robot.fk(q)
+      pose[:3,3] = np.array(vector)
+
+      ik_sols = self.robot.ik(pose)
+
+      # Filter to possible solutions
+      possible_solutions = []
+      for sol in ik_sols:
+        if (self.robot.in_limits(sol)): 
+          possible_solutions.append(sol)
+
+      if len(possible_solutions) < 1:
+        return (False, None)
+
+      q0 = q
+      closest_solution = min(possible_solutions, key=lambda q: np.linalg.norm(q - q0))
+
+      if not self.robot.in_limits(closest_solution):
+        return (False, None)
+
+      q = closest_solution
+    return (True, np.rad2deg(q))
+
+  def check_instructions_relative(self, move_vectors, start_q, start_v):
+    q = np.deg2rad(start_q)
+    v = copy.deepcopy(start_v)
+    for vector in move_vectors:
+      v += vector
+      # New position 
+      pose = self.robot.fk(q)
+      pose[:3,3] = np.array(v)
+
+      ik_sols = self.robot.ik(pose)
+
+      # Filter to possible solutions
+      possible_solutions = []
+      for sol in ik_sols:
+        if (self.robot.in_limits(sol)): 
+          possible_solutions.append(sol)
+
+      if len(possible_solutions) < 1:
+        return (False, None)
+
+      q0 = q
+      closest_solution = min(possible_solutions, key=lambda q: np.linalg.norm(q - q0))
+
+      if not self.robot.in_limits(closest_solution):
+        return (False, None)
+
+      q = closest_solution
+    return (True, np.rad2deg(q))

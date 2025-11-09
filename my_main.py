@@ -12,11 +12,12 @@ robot = CRS97()
 # robot = CRS93()
 
 #test = input("zapni ruku")
-robot.initialize(home=False)
+# robot.initialize(home=False)
 
 master = Controller(robot)
 
-while(True):
+condition = True
+while(condition):
     raw_input = input("Enter your instruction:\n")
 
-    master.handle_input(raw_input)
+    condition = master.handle_input(raw_input)

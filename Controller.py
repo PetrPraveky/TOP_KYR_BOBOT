@@ -7,6 +7,19 @@ from datetime import datetime
 class Controller:
     def __init__(self, robot):
         self.robot = robot
+        
+        # Smart initialization :D
+        try:
+            if not self.robot._mars.check_ready():
+                print("Robot is not ready?")
+                exit()
+        except:
+            print("Robot is not initalized. ARM THE ARM!")
+            input("Arm the arm!")
+
+        self.robot.initialize(home=False)
+        self.robot.wait_for_motion_stop()    
+
         self.move_handler = MoveHandler(robot)
         self.image_handler = ImageHandler(robot)
         self.target_handler = TargetHandler()
@@ -20,6 +33,8 @@ class Controller:
             [-0.07, 0, -0.07],
             [0, 0, -0.06]
         ]
+
+        self.hoop_height_above_target = 0.25
 
     
     def handle_input(self, raw_input):
@@ -65,14 +80,10 @@ class Controller:
             case "m": # Robot should do some movement
                 safety_command = None
 
-                # while(safety_command != "y" and safety_command != "n"):
-                #     safety_command = input("Are you sure you want to move the robot? press y/n:")
-                # if safety_command != "y":
-                #     return 0
-
                 match raw_input[1:]:
                     case "task":
-                        task_number = int(input("Enter task number"))
+                        task_number = int(input("Enter task number: "))
+
                         # move home
                         self.move_handler.move_home()
                         self.robot.wait_for_motion_stop()
@@ -80,68 +91,93 @@ class Controller:
                         # find target
                         self.image_handler.take_img()
                         self.image_handler.find_target()
+                        angle = self.image_handler.get_target_angle()
+
+                        # Target position
+                        formated_pixels = np.array([[self.image_handler.target_pixels]], dtype=np.float64)
+                        target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0]
+                        target_position = np.append(target_position, self.hoop_height_above_target) # 2D -> 3D
+
+                        print(target_position)
+
+                        # Get instructions to solution
+                        instructions = None
+                        match task_number:
+                            case 1:
+                                instructions = self.target_handler.get_instructions_A(angle)
+                            case 2:
+                                instructions = self.target_handler.get_instructions_B(angle)
+                            case 3:
+                                instructions = self.target_handler.get_instructions_C(angle)
+                            case 4:
+                                instructions = self.target_handler.get_instructions_D(angle)
+
+                        # Check if solution can be found for current target position
+                        if instructions is not None:
+                            if self.robot.in_limits(self.move_handler.STARTING_POSITION):
+                                print("Solution not possible!")
+                                return True
+
+                            # Check move: start -> target
+                            check, last_q = self.move_handler.check_instructions([target_position], self.move_handler.STARTING_POSITION)
+
+                            if not check:
+                                print("Solution not possible!")
+                                return True
+
+                            # Check move: target -> relative positions
+                            check, last_q = self.move_handler.check_instructions_relative(instructions, last_q, target_position)
+
+                            if not check:
+                                print("Solution not possible!")
+                                return True
+
+                            print("Solution is possible! Yipee!")
+                        else:
+                            print(f"Invalid task number {task_number}")
+                            return True
 
                         # move to start
                         self.move_handler.move_to_q_position()
                         self.robot.wait_for_motion_stop()
 
-                        # move to target
-                        formated_pixels = np.array([[self.image_handler.target_pixels]], dtype=np.float64)
-                        target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0]
-                        print("Target position:", target_position)
-                        # up_first = self.robot.fk(self.robot.get_q())[:3,3]
-                        # up_first[2] = 0.20
-                        # self.move_handler.move_ik(up_first)
-
-
-                        #fuj
-                        # angle = np.deg2rad(45)
-                        # rot_mat1 = np.array([[1,0,0], [0,np.cos(angle),-np.sin(angle)], [0,np.sin(angle),np.cos(angle)]])
-                        # mat = self.robot.fk(self.robot.get_q())
-                        # mat[:3,:3] = rot_mat1 @ mat[:3,:3]
-                        # self.move_handler.move_ik(mat[:3,3],mat[:3,:3])
-                        # input("after rotation")
-
-
+                        self.move_handler.move_ik(target_position)
+                        self.robot.wait_for_motion_stop()
+                        
+                        # Execute task A to C (A,B,C)
+                        if task_number < 4:
+                            self.move_handler.move_relative_sequantial(instructions)
+                            return True
+                        
+                        # Execute D and E task -> if we do it
                         match task_number:
-                            case 1:
-                                #self.move_handler.check_instructions()
+                            # case 1:
+                            #     #self.move_handler.check_instructions()
 
-                                self.move_handler.move_ik(np.append(target_position,0.25))
-                                self.robot.wait_for_motion_stop()
+                            #     instructions = self.target_handler.get_instructions_A(angle)
+                            #     self.move_handler.move_relative_sequantial(instructions)
+                            # case 2:
+                            #     #self.move_handler.check_instructions()
                                 
-                                self.move_handler.move_to_relative_position((0,0,-0.18))
-                            case 2:
-                                #self.move_handler.check_instructions()
-                                
-                                self.move_handler.move_ik(np.append(target_position,0.25))
-                                self.robot.wait_for_motion_stop()
-                                
-                                input("Is everything alright?")
-                                angle = self.image_handler.get_target_angle()
-                                print("Angle:", (angle + 90) % 360)
+                            #     instructions = self.target_handler.get_instructions_B(angle)
+                            #     self.move_handler.move_relative_sequantial(instructions)
+                            # case 3:
+                            #     #self.move_handler.check_instructions()
 
-                                instructions = self.target_handler.get_instructions_B(angle)
-                                self.move_handler.move_relative_sequantial(instructions)
-                            case 3:
-                                #self.move_handler.check_instructions()
-                                
-                                self.move_handler.move_ik(np.append(target_position,0.25))
-                                self.robot.wait_for_motion_stop()
-                                
-                                input("Is everything alright?")
-                                angle = self.image_handler.get_target_angle()
-                                print("Angle:", (angle + 90) % 360)
-
-                                instructions = self.target_handler.get_instructions_C(angle)
-                                self.move_handler.move_relative_sequantial(instructions)
+                            #     instructions = self.target_handler.get_instructions_C(angle)
+                            #     self.move_handler.move_relative_sequantial(instructions)
 
                             case 4:
-                                self.move_handler.move_ik(np.append(target_position,0.25))
+                                # fuj
+                                angle = np.deg2rad(45)
+                                rot_mat1 = np.array([[1,0,0], [0,np.cos(angle),-np.sin(angle)], [0,np.sin(angle),np.cos(angle)]])
+                                mat = self.robot.fk(self.robot.get_q())
+                                mat[:3,:3] = rot_mat1 @ mat[:3,:3]
+                                self.move_handler.move_ik(mat[:3,3],mat[:3,:3])
+                                input("after rotation")
+                                
+                                self.move_handler.move_ik(np.append(target_position, self.hoop_height_above_target))
                                 self.robot.wait_for_motion_stop()
-
-
-
 
                                 angle = (self.image_handler.get_target_angle())
 
@@ -153,8 +189,6 @@ class Controller:
 
                                 self.move_handler.move_relative_sequantial(instructions[1:])
 
-
-                            
                             case 5:
                                 pass
                     case "start":
@@ -168,9 +202,12 @@ class Controller:
                     case "target":
                         formated_pixels = np.array([[self.image_handler.target_pixels]], dtype=np.float64)
                         target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0]
+                        
                         print("Target position:", target_position)
+                        
                         up_first = self.robot.fk(self.robot.get_q())[:3,3]
-                        up_first[2] = 0.25
+                        up_first[2] = self.hoop_height_above_target
+                        
                         self.move_handler.move_ik(up_first)
                         self.move_handler.move_ik(np.append(target_position,0.25))
                     case "w":
@@ -225,12 +262,36 @@ class Controller:
 
                         self.move_handler.move_ik(mat[:3,3], mat[:3,:3])
 
-
+                    case "init":
+                        input("Arm the arm!")
+                        self.robot.initialize(home=True)
+                        self.robot.wait_for_motion_stop()
 
                     case _:
                         print("Move command not found!")
+            
+            case "q": # Stop robot
+                print("Stopping program")
+                return False
+
+            case "r":
+                if raw_input == "release":
+                    print("Robot released!")
+                    self.robot.release()
+                else:
+                    print("Command not found!")
+
+            case "s":
+                if raw_input == "start":
+                    input("Arm the arm!")
+                    self.robot.initialize(home=False)
+                    self.robot.wait_for_motion_stop()
+                else:
+                    print("Command not found!")
+
             case _:
                 print("Command not found!")
+        return True
 
     def calibrate(self):
         self.move_handler.move_to_q_position(self.move_handler.CALIBRATION_POSITION) # Moves robot to starting position

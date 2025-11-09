@@ -20,7 +20,6 @@ class ImageHandler:
   def load_h(self, filename="homography.txt"):
     with open(filename) as f:
       self.homography = [list(map(float, line.split())) for line in f]
-      print(self.homography)
     return 0
 
   def save_h(self, filename="homography.txt"):
