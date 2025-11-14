@@ -76,6 +76,9 @@ class Controller:
                         self.image_handler.find_target()
                     case "target_angle":
                         self.image_handler.get_target_angle()
+                    case "solve":
+                        number = input("Zadej task number: ")
+                        self.visualize_solvability(int(number))
                     case _:
                         print("Img command not found!")
 
@@ -301,3 +304,137 @@ class Controller:
         # self.image_handler.save_img(filename=name)
 
         return 0
+        
+    def visualize_solvability_single_thread(self, instruction_number): 
+        width = 1920 
+        height = 1200 
+        image = np.zeros((height // 4, width // 4, 3), dtype=np.uint8) 
+
+        rate = 4 
+        step = 15 
+        
+        for x in range(width // rate): 
+            for y in range(height // rate):
+                solutions = 0 
+                
+                for angle in range(-180, 181, step): 
+                    # Get instructions to solution 
+                    instructions = None 
+                    match instruction_number: 
+                        case 1: 
+                            instructions = self.target_handler.get_instructions_A(angle) 
+                        case 2: 
+                            instructions = self.target_handler.get_instructions_B(angle) 
+                        case 3: 
+                            instructions = self.target_handler.get_instructions_C(angle) 
+                        case _: 
+                            print('Solution not implemented!') 
+                            return 
+                            
+                    formated_pixels = np.array([[[x * rate,y * rate]]], dtype=np.float64) 
+                    target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0] 
+                    target_position = np.append(target_position, self.hoop_height_above_target) 
+                    
+                    # 2D -> 3D # Check if solution can be found for current target position 
+                    if instructions is not None: 
+                        if not self.robot.in_limits(np.deg2rad(self.move_handler.STARTING_POSITION)): 
+                            continue 
+                        
+                        # Check move: start -> target 
+                        check, last_q = self.move_handler.check_instructions([target_position], self.move_handler.STARTING_POSITION) 
+                        if not check: 
+                            continue 
+                            
+                        # Check move: target -> relative positions 
+                        check, last_q = self.move_handler.check_instructions_relative(instructions, last_q, target_position) 
+                        if not check: 
+                            continue 
+                            
+                    solutions += 1 
+                    
+                # Add to image 
+                max_solutons = 360 / step + 1 
+                hls = ((solutions / max_solutons) * 127, 127, 255) 
+                
+                image[y,x] = cv2.cvtColor(np.uint8([[hls]]), cv2.COLOR_HLS2BGR)[0][0] 
+                cv2.imshow('Visual', image) 
+                cv2.waitKey(1) 
+        
+        cv2.imshow('Visual', image) 
+        cv2.waitKey(0)
+
+    def visualize_solvability(self, instruction_number):
+        width = 1920
+        height = 1200
+        rate = 16
+        step = 15
+
+        scaled_w = width // rate
+        scaled_h = height // rate
+        image = np.zeros((scaled_h, scaled_w, 3), dtype=np.uint8)
+
+        max_solutions = 360 / step + 1
+        num_threads = 8  # můžeš upravit podle CPU
+
+        # Pomocná funkce pro zpracování jednoho sloupce
+        def process_column(x):
+            col = np.zeros((scaled_h, 3), dtype=np.uint8)
+            for y in range(scaled_h):
+                solutions = 0
+                for angle in range(-180, 181, step):
+                    # Vyber správnou sadu instrukcí
+                    match instruction_number:
+                        case 1:
+                            instructions = self.target_handler.get_instructions_A(angle)
+                        case 2:
+                            instructions = self.target_handler.get_instructions_B(angle)
+                        case 3:
+                            instructions = self.target_handler.get_instructions_C(angle)
+                        case _:
+                            print("Solution not implemented!")
+                            return None
+
+                    formated_pixels = np.array([[[x * rate, y * rate]]], dtype=np.float64)
+                    target_position = self.image_handler.pixels_to_position(formated_pixels)[0][0]
+                    target_position = np.append(target_position, self.hoop_height_above_target)
+
+                    if instructions is not None:
+                        if not self.robot.in_limits(np.deg2rad(self.move_handler.STARTING_POSITION)):
+                            continue
+
+                        check, last_q = self.move_handler.check_instructions(
+                            [target_position], self.move_handler.STARTING_POSITION
+                        )
+                        if not check:
+                            continue
+
+                        check, last_q = self.move_handler.check_instructions_relative(
+                            instructions, last_q, target_position
+                        )
+                        if not check:
+                            continue
+
+                    solutions += 1
+
+                # Výpočet barvy pixelu
+                hls = ((solutions / max_solutions) * 127, 127, 255)
+                col[y] = cv2.cvtColor(np.uint8([[hls]]), cv2.COLOR_HLS2BGR)[0][0]
+
+            return x, col
+
+        # Spuštění ve vláknech
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(process_column, x) for x in range(scaled_w)]
+
+            for f in as_completed(futures):
+                result = f.result()
+                if result is not None:
+                    x, col = result
+                    image[:, x] = col
+
+                    # Nepovinné průběžné vykreslování
+                    cv2.imshow("Visual", image)
+                    cv2.waitKey(1)
+
+        cv2.imshow("Visual", image)
+        cv2.waitKey(0)

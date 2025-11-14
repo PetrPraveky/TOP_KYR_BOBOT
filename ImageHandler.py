@@ -138,7 +138,7 @@ class ImageHandler:
     aruco_centers = []
 
     if len(corners) == 0:
-      print("Number of detected arucos is:", len(corners), "which is not 1 or 2!!!!")
+      print("Number of detected arucos is:", len(corners), "which is not 2!!!!")
       return 1
     elif (len(corners) == 1):
         print("Only one acuro!")
@@ -160,7 +160,7 @@ class ImageHandler:
         # Pixel length center to center
         length = (corners[0][0][0] - corners[0][0][1])
         lengthMag = np.linalg.norm(length)
-        centerToCenter = lengthMag / 0.04 * np.sqrt(0.075 ** 2 + 0.075 ** 2)
+        centerToCenter = lengthMag / 0.04 * np.sqrt(0.07 ** 2 + 0.07 ** 2)
 
         vec *= centerToCenter
         aruco_missing_center = aruco_center + vec
