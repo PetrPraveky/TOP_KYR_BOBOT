@@ -1,7 +1,5 @@
 import numpy as np
 import cv2
-from perception import *
-from aruco_detection import *
 import copy
 
 
@@ -84,17 +82,17 @@ class MoveHandler:
     
   def move_relative_sequantial(self, instructions):
     for instruction in instructions:
-      # input("Move?")
+      # input("continue")
+
       self.move_to_relative_position(instruction)
       self.robot.wait_for_motion_stop()
+
 
     return 0
 
   def rotate_ik(self, rotation_matrix):
     pose = self.robot.fk(self.robot.get_q())
-    print(pose)
     pose[:3,:3] = rotation_matrix @ pose[:3,:3]
-    print(pose)
     ik_sols = self.robot.ik(pose)
 
     if len(ik_sols) < 1:

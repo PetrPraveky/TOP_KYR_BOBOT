@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
-from perception import *
-from aruco_detection import *
 from MoveHandler import MoveHandler
+
 class ImageHandler:
   def __init__(self, robot):
     self.robot = robot
@@ -139,7 +138,7 @@ class ImageHandler:
     aruco_centers = []
 
     if len(corners) == 0:
-      print("Number of detected arucos is:", len(corners), "which is not 2!!!!")
+      print("Number of detected arucos is:", len(corners), "which is not 1 or 2!!!!")
       return 1
     elif (len(corners) == 1):
         print("Only one acuro!")
@@ -161,7 +160,7 @@ class ImageHandler:
         # Pixel length center to center
         length = (corners[0][0][0] - corners[0][0][1])
         lengthMag = np.linalg.norm(length)
-        centerToCenter = lengthMag / 0.04 * np.sqrt(0.07 ** 2 + 0.07 ** 2)
+        centerToCenter = lengthMag / 0.04 * np.sqrt(0.075 ** 2 + 0.075 ** 2)
 
         vec *= centerToCenter
         aruco_missing_center = aruco_center + vec
@@ -186,8 +185,6 @@ class ImageHandler:
     return 0
 
   def pixels_to_position(self, pixels):
-    print(self.homography)
-    print(self.homography.shape)
     return cv2.perspectiveTransform(pixels,self.homography)
 
   def get_target_angle(self):
@@ -225,7 +222,7 @@ class ImageHandler:
     else:
       resul = 180
 
-
-    print(angle, angle * orientation, result, offset, orientation)
-
     return result
+
+
+
